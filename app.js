@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
+  const APP_VERSION = '1.02';
   const state = {
     image: null, imageUrl: '', filename: '', width: 0, height: 0,
     elements: [], selected: null, zoom: .5, guides: true,
@@ -20,6 +21,28 @@
     toastTimeout = setTimeout(() => $('toast').classList.remove('show'), 3200);
   }
   function status(message) { $('bottomStatus').textContent = message; }
+  function showInstalledVersion() {
+    $('installPwaBtn').hidden=true;
+    $('versionRefreshBtn').hidden=false;
+    $('versionRefreshBtn').textContent=`↻ v${APP_VERSION}`;
+  }
+  async function refreshFromVersion() {
+    const hasUnsavedWork=state.elements.length>0||(state.filename&&state.filename!=='泰享樂_芭達雅曼谷_DM.jpg');
+    if(hasUnsavedWork&&!window.confirm('重新整理會清除尚未下載的編輯內容。請先下載 PNG，確定要重新整理嗎？'))return;
+    const button=$('versionRefreshBtn');
+    button.disabled=true;
+    button.textContent='更新中…';
+    try {
+      if('serviceWorker' in navigator){
+        const registration=await navigator.serviceWorker.getRegistration();
+        if(registration)await Promise.race([
+          registration.update(),
+          new Promise(resolve=>setTimeout(resolve,2500)),
+        ]);
+      }
+    }catch(error){console.info('檢查更新時改用一般重新整理',error);}
+    window.location.reload();
+  }
   function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
   function selected() { return state.elements.find(e => e.id === state.selected) || null; }
   function deepCopy(list) { return JSON.parse(JSON.stringify(list)); }
@@ -613,7 +636,8 @@
     $('mobileEditBtn').addEventListener('click',openMobileInspector);
     $('mobileInspectorClose').addEventListener('click',closeMobileInspector);
     if(window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true)
-      $('installPwaBtn').hidden=true;
+      showInstalledVersion();
+    $('versionRefreshBtn').addEventListener('click',refreshFromVersion);
     $('installPwaBtn').addEventListener('click',async()=>{
       if(deferredInstallPrompt){
         const prompt=deferredInstallPrompt;deferredInstallPrompt=null;
@@ -724,7 +748,7 @@
       updateMobileEditButton();
     });
     window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;});
-    window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;toast('已安裝到手機主畫面');});
+    window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;showInstalledVersion();toast('已安裝到手機主畫面');});
     bindFields();
   }
   initEvents();

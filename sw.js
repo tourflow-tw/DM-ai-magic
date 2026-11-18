@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dm-ai-magic-pages-v2';
+const CACHE_NAME = 'dm-ai-magic-pages-v1.02';
 const APP_FILES = [
   './', './index.html', './app.js', './style.css', './mobile.css',
   './manifest.webmanifest', './assets/demo-thailand-web.jpg',
