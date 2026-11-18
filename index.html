@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1b9b73" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="DM AI Magic" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./assets/icon-192.png" />
+  <meta name="description" content="免費修改旅遊 DM 價格：直接框選舊金額、輸入新金額、下載原尺寸圖片。也支援手動文字圖層。" />
+  <title>DM AI Magic · 旅行社 DM 價格快改</title>
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./mobile.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><div class="brand-icon">字<span>✦</span></div><div><strong>字圖編輯室</strong><small>AI TEXT STUDIO</small></div></div>
+      <div class="top-actions">
+        <span class="status-chip"><span class="status-dot"></span> 圖片在瀏覽器內處理</span>
+        <button class="btn install-btn" id="installPwaBtn" title="安裝到手機主畫面">＋ 安裝</button>
+        <button class="btn muted" id="undoBtn" title="復原 Ctrl+Z">↶ <span>復原</span></button>
+        <button class="btn muted" id="redoBtn" title="重做 Ctrl+Y">↷ <span>重做</span></button>
+        <button class="btn primary" id="downloadBtn">↓ <span>匯出 PNG</span></button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-inner">
+          <div class="section-label">工作空間 <span>01 / 03</span></div>
+          <div class="upload-card" id="uploadCard" tabindex="0" role="button" aria-label="上傳圖片">
+            <div class="upload-icon">↑</div><strong>上傳設計圖片</strong><small>點擊或拖放 JPG / PNG / WEBP</small>
+          </div>
+          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+          <button class="demo-link" id="demoBtn">使用剛剛的泰國 DM 範例 →</button>
+
+          <div class="section-label spaced">價格快改 <span class="free-label">完全免費</span></div>
+          <div class="price-card">
+            <div class="price-card-title"><span>＄</span><strong>智慧定位價格（免費）</strong></div>
+            <p>框住整個價格區，會自動縮到原本金額的大小，也可一併整理 NT 與 net。</p>
+            <button class="btn price-primary" id="priceToolBtn">▧ 框選舊金額</button>
+            <button class="btn price-secondary" id="eraseToolBtn">⌫ 清除 net 等文字</button>
+            <small id="toolHint">先按「框選舊金額」，再用滑鼠或手指在圖片上拖出範圍。</small>
+          </div>
+
+          <div class="section-label spaced">整張文字辨識 <span>實驗功能</span></div>
+          <div class="ai-card">
+            <div class="ai-title"><span class="sparkle">✦</span> 辨識所有文字（測試中）</div>
+            <p>免費 OCR 對彩色 DM 容易誤判；如果只是改金額，請使用上方免費快改。</p>
+            <button class="btn gradient" id="ocrBtn">✦ 嘗試全圖 OCR</button>
+            <div class="progress-wrap" id="progressWrap" hidden><div class="progress-track"><div id="progressBar"></div></div><span id="progressText">準備中…</span></div>
+            <div class="ai-note">免費本機 OCR · 複雜 DM 可能出現錯字或漏字，可手動修正</div>
+          </div>
+
+          <div class="section-label spaced">文字圖層工具 <span>手動</span></div>
+          <div class="tool-list">
+            <button class="tool active" id="selectTool"><span class="tool-icon">↖</span><span><strong>選取與移動</strong><small>點文字即可編輯</small></span><kbd>V</kbd></button>
+            <button class="tool" id="addTextBtn"><span class="tool-icon">T</span><span><strong>新增文字</strong><small>加入自己的文字圖層</small></span><kbd>T</kbd></button>
+          </div>
+          <div class="tip-card"><strong>✧ 小提醒</strong><p>只修改你框選的地方。舊文字以附近顏色遮蓋，單色背景通常較自然；若底下是照片或漸層，可能需要手動修正遮蓋顏色。</p></div>
+        </div>
+      </aside>
+
+      <main class="center">
+        <div class="canvas-bar">
+          <div><span class="breadcrumb">我的設計</span><span class="slash">/</span><strong id="fileLabel">泰享樂_芭達雅曼谷_DM.png</strong><span class="edited-pill">編輯中</span></div>
+          <div class="canvas-tools"><button class="mini-btn" id="toggleGuidesBtn" title="顯示文字框">▣ <span>文字框</span></button><span class="separator"></span><button class="mini-btn" id="zoomOutBtn">−</button><span id="zoomLabel">65%</span><button class="mini-btn" id="zoomInBtn">＋</button><button class="mini-btn fit-btn" id="fitBtn">適合畫面</button></div>
+        </div>
+
+        <div class="stage-scroller" id="stageScroller">
+          <div class="stage-center"><div class="page-frame" id="pageFrame"><div class="page" id="page"><img id="baseImage" alt="已上傳的原始設計圖片" draggable="false" /><div id="maskLayer" class="layer"></div><div id="textLayer" class="layer"></div><div id="selectionBox" hidden></div></div></div></div>
+          <div class="empty-state" id="emptyState"><div class="empty-illustration">✧<span>文</span>✦</div><h2>讓每一張圖片都能重新編輯</h2><p>上傳圖片或開啟範例，AI 幫你抓出每一段文字。</p><button class="btn primary" id="emptyUploadBtn">↑ 上傳圖片</button></div>
+        </div>
+        <div class="bottom-bar"><div><span class="online-dot"></span><span id="bottomStatus">已載入範例圖片，可開始 AI 辨識</span></div><div><span id="resolutionLabel">1120 × 1584 px</span><span class="separator"></span><span id="layerCount">0 個文字圖層</span></div></div>
+      </main>
+
+      <aside class="inspector" id="inspector">
+        <div class="inspector-head"><div><strong>設計屬性</strong><small id="inspectorSubtitle">選取文字即可調整</small></div><span class="property-icon">☷</span><button id="mobileInspectorClose" class="mobile-inspector-close" aria-label="關閉編輯面板">×</button></div>
+        <div id="noSelection" class="no-selection"><div class="selection-icon">✎</div><strong>先框選要修改的金額</strong><p>左側選「框選舊金額」，在畫面拖出範圍，輸入新金額後就能調整字型、位置與顏色。</p></div>
+        <div id="properties" hidden>
+          <div class="property-section"><div class="property-heading">文字內容 <span class="property-tag">可編輯</span></div><textarea id="textValue" rows="3" placeholder="請輸入文字"></textarea></div>
+          <div class="property-section"><div class="property-heading">字體樣式</div><label class="field-label" for="fontFamily">字型</label><select id="fontFamily"><option value="Noto Sans TC, sans-serif">思源黑體</option><option value="Microsoft JhengHei, sans-serif">微軟正黑體</option><option value="Arial, sans-serif">Arial</option><option value="Georgia, serif">Georgia</option><option value="cursive">手寫風格</option></select><div class="two-fields"><div><label class="field-label" for="fontSize">字體大小</label><div class="suffix-field"><input id="fontSize" type="number" min="6" max="400" step="1" /><span>px</span></div></div><div><label class="field-label" for="fontWeight">粗細</label><select id="fontWeight"><option value="400">一般</option><option value="500">中等</option><option value="600">半粗</option><option value="700">粗體</option><option value="800">特粗</option></select></div></div><div class="two-fields"><div><label class="field-label" for="textColor">文字顏色</label><div class="color-field"><input id="textColor" type="color" /><span id="textColorValue">#172b4d</span></div></div><div><label class="field-label" for="rotation">旋轉角度</label><div class="suffix-field"><input id="rotation" type="number" min="-360" max="360" step="1" /><span>°</span></div></div></div></div>
+          <div class="property-section"><div class="property-heading">位置與大小</div><div class="two-fields"><div><label class="field-label" for="xPos">X 位置</label><input id="xPos" type="number" /></div><div><label class="field-label" for="yPos">Y 位置</label><input id="yPos" type="number" /></div></div><div class="two-fields"><div><label class="field-label" for="widthValue">文字寬度</label><input id="widthValue" type="number" min="10" /></div><div><label class="field-label" for="opacityValue">透明度 %</label><input id="opacityValue" type="number" min="0" max="100" /></div></div></div>
+          <div class="property-section"><div class="property-heading">原圖處理</div><label class="switch-row"><span><strong>遮蓋原本的文字</strong><small>在原文字的位置自動補上背景色</small></span><input id="coverOriginal" type="checkbox" /><i></i></label><label class="field-label" for="coverColor">遮蓋顏色（可手動修正）</label><div class="color-field"><input id="coverColor" type="color"/><span id="coverColorValue">#ffffff</span></div></div>
+          <div class="property-section last"><button class="btn delete" id="deleteLayerBtn">⌫ 刪除此文字圖層</button></div>
+        </div>
+        <div class="layers-panel"><div class="layers-head"><strong>圖層 <span id="layerBadge">0</span></strong><button id="clearTextBtn" title="清空文字圖層">清空</button></div><div id="layersList"><div class="layers-empty">修改金額後，圖層會出現在這裡</div></div></div>
+      </aside>
+    </div>
+    <button class="mobile-edit-chip" id="mobileEditBtn" hidden>✎ 調整選取文字</button>
+    <nav class="mobile-toolbar" aria-label="手機編輯工具列">
+      <button id="mobileUploadBtn" class="mobile-action"><span>↑</span><small>上傳</small></button>
+      <button id="mobilePriceBtn" class="mobile-action active"><span>＄</span><small>改金額</small></button>
+      <button id="mobileSelectBtn" class="mobile-action"><span>↖</span><small>移動</small></button>
+      <button id="mobileEraseBtn" class="mobile-action"><span>⌫</span><small>遮蓋</small></button>
+      <button id="mobileDownloadBtn" class="mobile-action download-action"><span>↓</span><small>下載</small></button>
+    </nav>
+  </div>
+  <div class="install-help" id="installHelp" hidden>
+    <div class="install-help-dialog" role="dialog" aria-modal="true" aria-label="將編輯室安裝到主畫面">
+      <div class="install-help-logo">字</div>
+      <h2>加入手機主畫面</h2>
+      <p><strong>Android（Chrome / Samsung Internet）</strong><br />點選瀏覽器選單「⋮」，再選「安裝應用程式」或「加到主畫面」。</p>
+      <p><strong>iPhone（Safari）</strong><br />點選「分享」按鈕，再選「加入主畫面」。</p>
+      <button id="installHelpClose" class="btn primary">了解</button>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="quickModal" hidden>
+    <div class="quick-dialog" role="dialog" aria-modal="true" aria-labelledby="quickTitle">
+      <div class="quick-modal-icon">＄</div>
+      <h2 id="quickTitle">修改這個金額</h2>
+      <p>會先找出真正的數字範圍，再依原本金額大小放入新價格，不會遮住上方的標題。</p>
+      <label for="quickPriceInput">新金額</label>
+      <input id="quickPriceInput" type="text" inputmode="decimal" placeholder="例如 26,600 或 26600" autocomplete="off" />
+      <label class="quick-option" for="quickTidyPrefix"><input id="quickTidyPrefix" type="checkbox" checked /><span>一併移除 (net)，放大 NT 並靠近新金額<br /><small>適用常見的紅字 NT(net) 版型；無法定位時會保留原樣</small></span></label>
+      <div class="quick-actions"><button class="btn muted" id="quickCancelBtn">取消</button><button class="btn primary" id="quickApplyBtn">套用新金額</button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="./app.js"></script>
+</body>
+</html>

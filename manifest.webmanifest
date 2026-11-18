@@ -1,0 +1,17 @@
+{
+  "name": "DM AI Magic｜旅行社 DM 編輯器",
+  "short_name": "DM AI Magic",
+  "description": "上傳旅遊 DM，智慧修改金額、調整 NT 排版，匯出 PNG 圖片。",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f6fa",
+  "theme_color": "#1b9b73",
+  "lang": "zh-Hant",
+  "icons": [
+    {"src":"./assets/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"./assets/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}
