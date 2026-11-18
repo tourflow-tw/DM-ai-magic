@@ -72,8 +72,11 @@
   function fit() {
     if (!state.image) return;
     const target = $('stageScroller');
-    const scale = Math.min(1, (target.clientWidth - 95) / state.width, (target.clientHeight - 75) / state.height);
+    const mobile=window.innerWidth<=800;
+    const scale = Math.min(1, (target.clientWidth - (mobile?24:95)) / state.width, (target.clientHeight - (mobile?24:75)) / state.height);
     setZoom(Math.max(.1, scale));
+    target.scrollLeft=0;
+    target.scrollTop=0;
   }
 
   function loadImage(src, filename) {
@@ -384,8 +387,13 @@
       erase:'在 net 或不想要的文字上拖出範圍，即可用背景色遮蓋。',
       select:'點選新增的文字圖層，可以拖曳位置與修改字體。',
     };
+    const mobileInstructions={
+      price:'單指框選金額 · 雙指縮放或移動圖片',
+      erase:'單指框選遮蓋 · 雙指縮放或移動圖片',
+      select:'單指拖動圖片 · 點文字調整 · 雙指縮放',
+    };
     $('toolHint').textContent=instructions[mode];
-    if(state.image)status(instructions[mode]);
+    if(state.image)status(window.innerWidth<=800?mobileInstructions[mode]:instructions[mode]);
   }
   function drawPoint(evt) {
     const bounds=$('page').getBoundingClientRect();
@@ -604,6 +612,8 @@
     $('mobileEraseBtn').addEventListener('click',()=>setMode(state.mode==='erase'?'select':'erase'));
     $('mobileEditBtn').addEventListener('click',openMobileInspector);
     $('mobileInspectorClose').addEventListener('click',closeMobileInspector);
+    if(window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true)
+      $('installPwaBtn').hidden=true;
     $('installPwaBtn').addEventListener('click',async()=>{
       if(deferredInstallPrompt){
         const prompt=deferredInstallPrompt;deferredInstallPrompt=null;
@@ -635,23 +645,41 @@
     $('page').addEventListener('pointerup',onDrawEnd);
     $('page').addEventListener('pointercancel',dismissSelection);
     const scroller=$('stageScroller');
-    let pinch=null;
+    let touchGesture=null;
     const distance=touches=>Math.hypot(touches[0].clientX-touches[1].clientX,touches[0].clientY-touches[1].clientY);
+    const midpoint=touches=>({x:(touches[0].clientX+touches[1].clientX)/2,y:(touches[0].clientY+touches[1].clientY)/2});
     scroller.addEventListener('touchstart',event=>{
-      if(event.touches.length!==2)return;
-      dismissSelection();
-      const touches=event.touches;
-      pinch={initialDistance:distance(touches),initialZoom:state.zoom};
-    },{passive:true});
-    scroller.addEventListener('touchmove',event=>{
-      if(!pinch||event.touches.length!==2)return;
-      event.preventDefault();
-      const centerX=(event.touches[0].clientX+event.touches[1].clientX)/2;
-      const centerY=(event.touches[0].clientY+event.touches[1].clientY)/2;
-      zoomAround(pinch.initialZoom*distance(event.touches)/Math.max(1,pinch.initialDistance),centerX,centerY);
+      if(event.touches.length===2){
+        event.preventDefault();
+        dismissSelection();
+        const center=midpoint(event.touches);
+        touchGesture={kind:'pinch',distance:distance(event.touches),x:center.x,y:center.y};
+      }else if(event.touches.length===1&&state.mode==='select'&&!event.target.closest?.('.text-object')){
+        touchGesture={kind:'pan',x:event.touches[0].clientX,y:event.touches[0].clientY};
+      }
     },{passive:false});
-    scroller.addEventListener('touchend',event=>{if(event.touches.length<2)pinch=null;},{passive:true});
-    scroller.addEventListener('touchcancel',()=>pinch=null,{passive:true});
+    scroller.addEventListener('touchmove',event=>{
+      if(event.touches.length===2){
+        event.preventDefault();
+        const center=midpoint(event.touches),currentDistance=distance(event.touches);
+        if(touchGesture?.kind==='pinch'){
+          zoomAround(state.zoom*currentDistance/Math.max(1,touchGesture.distance),center.x,center.y);
+          scroller.scrollLeft+=touchGesture.x-center.x;
+          scroller.scrollTop+=touchGesture.y-center.y;
+        }else dismissSelection();
+        touchGesture={kind:'pinch',distance:currentDistance,x:center.x,y:center.y};
+      }else if(event.touches.length===1&&touchGesture?.kind==='pan'){
+        event.preventDefault();
+        const touch=event.touches[0];
+        scroller.scrollLeft+=touchGesture.x-touch.clientX;
+        scroller.scrollTop+=touchGesture.y-touch.clientY;
+        touchGesture={kind:'pan',x:touch.clientX,y:touch.clientY};
+      }
+    },{passive:false});
+    scroller.addEventListener('touchend',event=>{if(event.touches.length<2)touchGesture=null;},{passive:true});
+    scroller.addEventListener('touchcancel',()=>touchGesture=null,{passive:true});
+    for(const kind of ['gesturestart','gesturechange','gestureend'])
+      scroller.addEventListener(kind,event=>event.preventDefault(),{passive:false});
     $('deleteLayerBtn').addEventListener('click',()=>{
       if(!selected())return;checkpoint();state.elements=state.elements.filter(e=>e.id!==state.selected);state.selected=null;updateAll();toast('已刪除文字圖層');
     });
@@ -688,7 +716,13 @@
         updateAll();
       }
     });
-    window.addEventListener('resize',()=>{if(state.image)fit();if(window.innerWidth>800)closeMobileInspector();updateMobileEditButton();});
+    let viewportWidth=document.documentElement.clientWidth;
+    window.addEventListener('resize',()=>{
+      const nextWidth=document.documentElement.clientWidth;
+      if(Math.abs(nextWidth-viewportWidth)>2){viewportWidth=nextWidth;if(state.image)fit();}
+      if(window.innerWidth>800)closeMobileInspector();
+      updateMobileEditButton();
+    });
     window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;});
     window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;toast('已安裝到手機主畫面');});
     bindFields();
